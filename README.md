@@ -1,279 +1,249 @@
-# AWS S3 File Upload/Download API
+# AWS S3 File Upload/Download Full Stack Application
 
-A production-ready Node.js REST API for secure file uploads and downloads using AWS S3 pre-signed URLs with JWT authentication.
+A complete full-stack application for secure file uploads and downloads using AWS S3 pre-signed URLs, featuring a React TypeScript frontend and Node.js Express backend with JWT authentication.
 
-## Features
+## 🏗️ Architecture
 
+```
+┌──────────────┐      ┌──────────────┐      ┌──────────┐
+│   React UI   │─────▶│   Express    │─────▶│   AWS    │
+│  TypeScript  │◀─────│   Backend    │◀─────│   S3     │
+└──────────────┘      └──────────────┘      └──────────┘
+       │                      │                     │
+       │  1. Auth & Get URL   │                     │
+       │◀─────────────────────│                     │
+       │                      │                     │
+       │  2. Upload/Download directly to/from S3    │
+       │─────────────────────────────────────────────▶│
+```
+
+## ✨ Features
+
+### Backend
 - ✅ **Pre-signed URLs** for direct client-to-S3 uploads/downloads
 - ✅ **JWT Authentication** with bcrypt password hashing
 - ✅ **User-specific file isolation** with S3 key prefixes
-- ✅ **File management** (upload, download, list, delete, metadata)
+- ✅ **File management** (upload, download, list, delete)
+- ✅ **Auto content-type detection** from file extensions
 - ✅ **Security** features (CORS, rate limiting, file validation)
-- ✅ **Docker support** for containerized deployment
-- ✅ **Health checks** for monitoring
 - ✅ **AWS SDK v3** for optimal performance
 
-## Documentation
+### Frontend
+- ✅ **React 18** with **TypeScript**
+- ✅ **Modern UI** with responsive design
+- ✅ **User authentication** (login/register)
+- ✅ **File upload** with progress indication
+- ✅ **File listing** with metadata (size, date)
+- ✅ **Download** files directly from S3
+- ✅ **Delete** files with confirmation
+- ✅ **Token management** with localStorage
 
-- 📖 [API.md](API.md) - Complete API reference with request/response examples
-- 🚀 [DEPLOYMENT.md](DEPLOYMENT.md) - AWS setup and deployment guide (EC2/ECS)
-- 🧪 [POSTMAN.md](POSTMAN.md) - Postman collection usage and testing workflows
-
-## Architecture
+## 📁 Project Structure
 
 ```
-┌─────────┐      ┌─────────────┐      ┌──────────┐
-│ Client  │─────▶│   Express   │─────▶│   AWS    │
-│         │◀─────│   API       │◀─────│   S3     │
-└─────────┘      └─────────────┘      └──────────┘
-    │                  │                     │
-    │  1. Get URL      │                     │
-    │◀─────────────────│                     │
-    │                  │                     │
-    │  2. Upload/Download directly           │
-    │────────────────────────────────────────▶│
+aws-s3/
+├── backend/                 # Express API server
+│   ├── src/
+│   │   ├── config/         # AWS and auth configuration
+│   │   ├── controllers/    # Route controllers
+│   │   ├── middleware/     # Auth and error handling
+│   │   ├── routes/         # API routes
+│   │   ├── services/       # S3 service layer
+│   │   └── utils/          # Validators and helpers
+│   ├── package.json
+│   └── .env
+├── frontend/               # React TypeScript UI
+│   ├── src/
+│   │   ├── components/     # React components
+│   │   ├── services/       # API service
+│   │   ├── types/          # TypeScript interfaces
+│   │   └── App.tsx         # Main app component
+│   └── package.json
+└── README.md
 ```
 
-**Flow:**
-1. Client authenticates and receives JWT token
-2. Client requests pre-signed URL from API
-3. API generates pre-signed URL using AWS SDK
-4. Client uploads/downloads file directly to/from S3
-5. No file data passes through API server (bandwidth efficient)
-
-## Quick Start
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - pnpm (or npm/yarn)
 - AWS Account with S3 bucket
 - AWS IAM credentials with S3 permissions
 
-### Installation
+### 1. Backend Setup
 
-1. **Clone the repository**
 ```bash
-git clone <repository-url>
-cd aws-s3
-```
+cd backend
 
-2. **Install dependencies**
-```bash
+# Install dependencies
 pnpm install
-```
 
-3. **Configure environment variables**
-```bash
+# Configure environment
 cp .env.example .env
+# Edit .env with your AWS credentials
+
+# Start backend server
+pnpm run dev
 ```
 
-Edit `.env` with your AWS credentials:
+The backend will start on `http://localhost:3000`
+
+**Backend Environment Variables:**
 ```env
 AWS_REGION=us-east-1
 AWS_ACCESS_KEY_ID=your_access_key
 AWS_SECRET_ACCESS_KEY=your_secret_key
 AWS_S3_BUCKET_NAME=your-bucket-name
-JWT_SECRET=your_secure_random_string
+JWT_SECRET=your_secret_key
 ```
 
-4. **Start the server**
-```bash
-# Development mode (with auto-reload)
-pnpm dev
-
-# Production mode
-pnpm start
-```
-
-The server will start on `http://localhost:3000`
-
-## API Usage
-
-### 1. Register a User
-```bash
-curl -X POST http://localhost:3000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "password": "password123",
-    "name": "John Doe"
-  }'
-```
-
-### 2. Login
-```bash
-curl -X POST http://localhost:3000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "password": "password123"
-  }'
-```
-
-Response includes JWT token - use this for authenticated requests.
-
-### 3. Get Upload URL
-```bash
-curl -X POST http://localhost:3000/api/files/upload-url \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -d '{
-    "fileName": "document.pdf"
-  }'
-```
-
-**Note:** Content type is automatically detected from file extension. You can also specify it explicitly with `"contentType": "application/pdf"`.
-
-### 4. Upload File to S3
-```bash
-curl -X PUT "PRESIGNED_UPLOAD_URL" \
-  -H "Content-Type: application/pdf" \
-  --data-binary @document.pdf
-```
-
-### 5. List Your Files
-```bash
-curl http://localhost:3000/api/files \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
-```
-
-For complete API documentation, see [API.md](API.md)
-
-## Docker Deployment
-
-### Build and Run with Docker Compose
+### 2. Frontend Setup
 
 ```bash
-# Build and start
-docker-compose up --build
+cd frontend
 
-# Run in detached mode
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop
-docker-compose down
-```
-
-### Build Docker Image
-
-```bash
-docker build -t s3-upload-api .
-docker run -p 3000:3000 --env-file .env s3-upload-api
-```
-
-## AWS Setup
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions on:
-- Creating and configuring S3 bucket
-- Setting up IAM roles and policies
-- Deploying to EC2/ECS
-- Security best practices
-
-## Project Structure
-
-```
-aws-s3/
-├── src/
-│   ├── config/
-│   │   ├── aws.js              # AWS S3 client configuration
-│   │   └── auth.js             # JWT configuration
-│   ├── middleware/
-│   │   ├── auth.js             # JWT authentication middleware
-│   │   └── errorHandler.js    # Global error handler
-│   ├── routes/
-│   │   ├── auth.routes.js      # Authentication endpoints
-│   │   └── files.routes.js     # File operation endpoints
-│   ├── controllers/
-│   │   ├── authController.js   # Auth logic
-│   │   └── filesController.js  # File operations logic
-│   ├── services/
-│   │   └── s3Service.js        # S3 SDK wrapper
-│   ├── utils/
-│   │   └── validators.js       # Input validation
-│   ├── app.js                  # Express app setup
-│   └── server.js               # Server entry point
-├── .env.example                # Environment template
-├── .gitignore
-├── .nvmrc                      # Node.js version
-├── Dockerfile
-├── docker-compose.yml
-├── iam-policy.json            # Required IAM permissions
-├── postman-collection.json    # Postman API testing collection
-├── package.json
-├── README.md                  # This file
-├── API.md                     # API documentation
-├── DEPLOYMENT.md              # Deployment guide
-└── POSTMAN.md                 # Postman testing guide
-```
-
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Server port | `3000` |
-| `NODE_ENV` | Environment | `development` |
-| `AWS_REGION` | AWS region | `us-east-1` |
-| `AWS_ACCESS_KEY_ID` | AWS access key | - |
-| `AWS_SECRET_ACCESS_KEY` | AWS secret key | - |
-| `AWS_S3_BUCKET_NAME` | S3 bucket name | - |
-| `JWT_SECRET` | JWT signing secret | - |
-| `JWT_EXPIRES_IN` | Token expiration | `24h` |
-| `MAX_FILE_SIZE` | Max file size (bytes) | `10485760` (10MB) |
-| `ALLOWED_FILE_TYPES` | Allowed MIME types | See `.env.example` |
-| `PRESIGNED_URL_UPLOAD_EXPIRES` | Upload URL expiry (seconds) | `300` (5 min) |
-| `PRESIGNED_URL_DOWNLOAD_EXPIRES` | Download URL expiry (seconds) | `3600` (1 hour) |
-| `ALLOWED_ORIGINS` | CORS allowed origins | `http://localhost:3000` |
-| `RATE_LIMIT_WINDOW_MS` | Rate limit window | `900000` (15 min) |
-| `RATE_LIMIT_MAX_REQUESTS` | Max requests per window | `100` |
-
-## Security Features
-
-- **Pre-signed URLs**: Files transfer directly between client and S3
-- **JWT Authentication**: Stateless token-based auth
-- **Password Hashing**: bcrypt with salt rounds
-- **User Isolation**: Files stored in user-specific S3 prefixes
-- **Input Validation**: File type, size, and name sanitization
-- **Rate Limiting**: Prevent abuse and DoS attacks
-- **CORS**: Configurable allowed origins
-- **Non-root Docker User**: Container runs as unprivileged user
-
-## Development
-
-```bash
 # Install dependencies
 pnpm install
 
-# Run in development mode (auto-reload)
-pnpm dev
+# Start development server
+pnpm run dev
+```
 
-# Run in production mode
+The frontend will start on `http://localhost:5173`
+
+### 3. AWS Setup
+
+See [backend/DEPLOYMENT.md](backend/DEPLOYMENT.md) for detailed AWS setup instructions:
+- Creating S3 bucket
+- Configuring CORS
+- Setting up IAM user and permissions
+
+## 📝 Usage
+
+### 1. Access the Application
+Open `http://localhost:5173` in your browser
+
+### 2. Register/Login
+- Create a new account or login with existing credentials
+- JWT token is automatically stored in localStorage
+
+### 3. Upload Files
+- Click "Select File" and choose a file
+- Content type is automatically detected from file extension
+- File uploads directly to S3 (no server bandwidth used)
+
+### 4. Manage Files
+- View all your files with metadata
+- Download files directly from S3
+- Delete files with confirmation
+
+## 🔒 Security Features
+
+- **JWT Authentication**: Secure token-based auth
+- **Password Hashing**: bcrypt with salt rounds
+- **User Isolation**: Files are stored per user in S3
+- **Pre-signed URLs**: Time-limited, secure S3 access
+- **CORS Protection**: Configurable allowed origins
+- **File Validation**: Content type and size limits
+- **Private S3 Bucket**: All files private by default
+
+## 🛠️ Development
+
+### Backend Development
+```bash
+cd backend
+pnpm run dev  # Auto-reload on changes
+```
+
+### Frontend Development
+```bash
+cd frontend
+pnpm run dev  # Hot module replacement
+```
+
+### Build for Production
+
+**Backend:**
+```bash
+cd backend
 pnpm start
 ```
 
-## Testing
+**Frontend:**
+```bash
+cd frontend
+pnpm run build
+pnpm run preview
+```
 
-### Postman Collection
+## 📚 API Documentation
 
-A complete Postman collection is included for easy testing:
+See [backend/API.md](backend/API.md) for complete API reference including:
+- Authentication endpoints
+- File management endpoints
+- Request/response examples
+- Error codes
 
-1. **Import** `postman-collection.json` into Postman
-2. **Run requests** in order: Health Check → Register → Get Upload URL → Upload File → List Files
-3. **Automated tests** verify responses and save tokens/URLs automatically
+## 🧪 Testing with Postman
 
-See [POSTMAN.md](POSTMAN.md) for detailed testing workflow and tips.
+A complete Postman collection is available in `backend/postman-collection.json`
 
-### cURL Examples
+See [backend/POSTMAN.md](backend/POSTMAN.md) for:
+- Setup instructions
+- Testing workflows
+- Environment configuration
 
-Test endpoints using curl. See [API.md](API.md) for complete examples.
+## 🚢 Deployment
 
-## License
+See [backend/DEPLOYMENT.md](backend/DEPLOYMENT.md) for production deployment guides:
+- Docker deployment
+- AWS EC2 deployment
+- AWS ECS deployment
+- Security best practices
+
+## 📦 Technology Stack
+
+### Backend
+- **Runtime**: Node.js 18+
+- **Framework**: Express.js
+- **Authentication**: JWT + bcryptjs
+- **AWS SDK**: @aws-sdk/client-s3 v3
+- **Language**: JavaScript (ES modules)
+
+### Frontend
+- **Framework**: React 18
+- **Language**: TypeScript
+- **Build Tool**: Vite
+- **Styling**: CSS (Custom design)
+- **State Management**: React hooks
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Open a pull request
+
+## 📄 License
 
 MIT
 
-## Contributing
+## 🆘 Support
 
-Contributions are welcome! Please open an issue or submit a pull request.
+For issues and questions:
+- Check [backend/API.md](backend/API.md) for API documentation
+- See [backend/DEPLOYMENT.md](backend/DEPLOYMENT.md) for setup help
+- Review [backend/POSTMAN.md](backend/POSTMAN.md) for testing guidance
+
+## 🎯 Roadmap
+
+- [ ] User profile management
+- [ ] File sharing with other users
+- [ ] File preview (images, PDFs)
+- [ ] Folder organization
+- [ ] Search and filtering
+- [ ] Upload progress tracking
+- [ ] Drag & drop upload
+- [ ] Database integration (PostgreSQL/MongoDB)

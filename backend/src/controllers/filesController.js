@@ -6,13 +6,22 @@ import * as s3Service from '../services/s3Service.js';
  */
 export const getUploadUrl = async (req, res, next) => {
     try {
-        const { fileName, contentType } = req.body;
+        const { fileName, contentType, region } = req.body;
         const userId = req.user.id;
 
-        // Create user-specific S3 key
+        // Validate region
+        const validRegions = ['UK', 'IRE'];
+        if (!region || !validRegions.includes(region)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid region. Must be UK or IRE',
+            });
+        }
+
+        // Create region-based S3 key (shared across users)
         const timestamp = Date.now();
         const fileId = `${timestamp}_${fileName}`;
-        const s3Key = `users/${userId}/${fileId}`;
+        const s3Key = `${region}/${fileId}`;
 
         // Get expiration time from environment or use default (5 minutes)
         const expiresIn = parseInt(process.env.PRESIGNED_URL_UPLOAD_EXPIRES || '300', 10);
@@ -31,6 +40,7 @@ export const getUploadUrl = async (req, res, next) => {
                 uploadUrl,
                 fileId,
                 key: s3Key,
+                region,
                 contentType,
                 expiresIn,
             },
@@ -42,15 +52,24 @@ export const getUploadUrl = async (req, res, next) => {
 
 /**
  * Generate pre-signed URL for file download
- * GET /api/files/:fileId/download-url
+ * GET /api/files/:fileId/download-url?region=UK|IRE
  */
 export const getDownloadUrl = async (req, res, next) => {
     try {
         const { fileId } = req.params;
-        const userId = req.user.id;
+        const { region } = req.query;
 
-        // Construct S3 key
-        const s3Key = `users/${userId}/${fileId}`;
+        // Validate region
+        const validRegions = ['UK', 'IRE'];
+        if (!region || !validRegions.includes(region)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid region. Must be UK or IRE',
+            });
+        }
+
+        // Construct S3 key with region
+        const s3Key = `${region}/${fileId}`;
 
         // Verify file exists before generating download URL
         try {
@@ -86,25 +105,51 @@ export const getDownloadUrl = async (req, res, next) => {
 };
 
 /**
- * List all files for the authenticated user
- * GET /api/files
+ * List all files from regional folders
+ * GET /api/files?region=UK|IRE|all
  */
 export const listFiles = async (req, res, next) => {
     try {
-        const userId = req.user.id;
-        const prefix = `users/${userId}/`;
+        const { region } = req.query;
+        const validRegions = ['UK', 'IRE', 'all'];
 
-        // List files from S3
-        const files = await s3Service.listFiles(prefix);
+        // Default to 'all' if not specified
+        const selectedRegion = region || 'all';
+
+        if (!validRegions.includes(selectedRegion)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid region. Must be UK, IRE, or all',
+            });
+        }
+
+        let allFiles = [];
+
+        // List files based on region selection
+        if (selectedRegion === 'all') {
+            // Fetch from both regions
+            const ukFiles = await s3Service.listFiles('UK/');
+            const ireFiles = await s3Service.listFiles('IRE/');
+            allFiles = [...ukFiles, ...ireFiles];
+        } else {
+            // Fetch from specific region
+            allFiles = await s3Service.listFiles(`${selectedRegion}/`);
+        }
 
         // Transform file data for response
-        const formattedFiles = files.map(file => {
-            // Extract fileId from key (remove prefix)
-            const fileId = file.key.replace(prefix, '');
+        const formattedFiles = allFiles.map(file => {
+            // Extract region and fileId from key (e.g., "UK/123456_file.txt")
+            const parts = file.key.split('/');
+            const region = parts[0];
+            const fileId = parts[1];
+            // Extract fileName (remove timestamp prefix)
+            const fileName = fileId.split('_').slice(1).join('_');
 
             return {
+                key: file.key,
                 fileId,
-                name: fileId.split('_').slice(1).join('_'), // Remove timestamp prefix
+                fileName,
+                region,
                 size: file.size,
                 lastModified: file.lastModified,
             };
@@ -125,15 +170,24 @@ export const listFiles = async (req, res, next) => {
 
 /**
  * Delete a file
- * DELETE /api/files/:fileId
+ * DELETE /api/files/:fileId?region=UK|IRE
  */
 export const deleteFile = async (req, res, next) => {
     try {
         const { fileId } = req.params;
-        const userId = req.user.id;
+        const { region } = req.query;
 
-        // Construct S3 key
-        const s3Key = `users/${userId}/${fileId}`;
+        // Validate region
+        const validRegions = ['UK', 'IRE'];
+        if (!region || !validRegions.includes(region)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid region. Must be UK or IRE',
+            });
+        }
+
+        // Construct S3 key with region
+        const s3Key = `${region}/${fileId}`;
 
         // Verify file exists before deletion
         try {
